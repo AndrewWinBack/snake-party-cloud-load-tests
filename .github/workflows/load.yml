@@ -15,7 +15,7 @@ concurrency:
 jobs:
   load:
     name: Cloud node ${{ matrix.shard }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -28,9 +28,9 @@ jobs:
           persist-credentials: false
       - name: Install official k6 with verified checksum
         run: |
-          curl --fail --location --retry 3 https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-amd64.tar.gz -o k6.tar.gz
-          echo '39c3117b6af817592dcd0ce4242105c0a7af10948c2a425306f0be8f7a8a8ab1  k6.tar.gz' | sha256sum --check --strict
-          tar -xzf k6.tar.gz --strip-components=1 k6-v2.3.0-linux-amd64/k6
+          curl --fail --location --retry 3 https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-arm64.tar.gz -o k6.tar.gz
+          echo '5ca3433e8201da72a284aaa241a1bb5fb47f4abb4e384d39410ddd8062f49b90  k6.tar.gz' | sha256sum --check --strict
+          tar -xzf k6.tar.gz --strip-components=1 k6-v2.3.0-linux-arm64/k6
       - name: Build pinned k6 with transport-error diagnostics
         run: python3 scripts/build-diagnostic-k6.py
       - name: Run cloud shard

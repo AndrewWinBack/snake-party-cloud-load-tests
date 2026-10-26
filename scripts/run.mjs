@@ -22,7 +22,7 @@ mkdirSync('runtime',{recursive:true});
 writeFileSync('runtime/fixture.json',JSON.stringify(bundle.fixture),{mode:0o600});
 const shard=Number(process.env.SHARD_INDEX);
 assert.ok(Number.isInteger(shard)&&shard>=0&&shard<4);
-console.log(JSON.stringify({event:'runner',shard,hostedBy:'GitHub Actions',runId:process.env.GITHUB_RUN_ID,runnerName:process.env.RUNNER_NAME,runnerOS:process.env.RUNNER_OS,players:bundle.fixture.players/4,seconds:bundle.fixture.duration}));
+console.log(JSON.stringify({event:'runner',shard,hostedBy:'GitHub Actions',runId:process.env.GITHUB_RUN_ID,runnerName:process.env.RUNNER_NAME,runnerOS:process.env.RUNNER_OS,runnerArch:process.env.RUNNER_ARCH,runnerImage:process.env.ImageOS,players:bundle.fixture.players/4,seconds:bundle.fixture.duration}));
 const env={...process.env};for(const name of Object.keys(env))if(name.startsWith('BUNDLE_'))delete env[name];
 if(shard===0)env.TEST_HOST_KEY=bundle.hostKey;
 const child=spawn('./k6',['run','load/test.js'],{env,stdio:['ignore','pipe','pipe']});
@@ -35,5 +35,5 @@ for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{
 });
 const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve)});
 writeFileSync('runtime/run.log',log);
-writeFileSync('runtime/execution.json',JSON.stringify({scope,shard,players:bundle.fixture.players/4,seconds:bundle.fixture.duration,runId:process.env.GITHUB_RUN_ID,runnerName:process.env.RUNNER_NAME,transportDiagnostics:true,k6SourceCommit:'e0887846143ab176d4b5483c9d52cf3b3e009f1a',exitCode:code},null,2));
+writeFileSync('runtime/execution.json',JSON.stringify({scope,shard,players:bundle.fixture.players/4,seconds:bundle.fixture.duration,runId:process.env.GITHUB_RUN_ID,runnerName:process.env.RUNNER_NAME,runnerOS:process.env.RUNNER_OS,runnerArch:process.env.RUNNER_ARCH,runnerImage:process.env.ImageOS,transportDiagnostics:true,k6SourceCommit:'e0887846143ab176d4b5483c9d52cf3b3e009f1a',exitCode:code},null,2));
 process.exitCode=typeof code==='number'?code:1;
