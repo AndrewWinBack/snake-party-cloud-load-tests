@@ -17,6 +17,7 @@ const errors=new Rate('game_errors'),scoreMatch=new Rate('score_matches'),stateM
 const ackMs=new Trend('score_ack_ms',true),readyMs=new Trend('player_ready_ms',true),joinMs=new Trend('player_join_ms',true),gaps=new Trend('snapshot_gap_ms',true),timerLag=new Trend('generator_timer_lag_ms',true),heartbeatMs=new Trend('heartbeat_rtt_ms',true),recoveryMs=new Trend('planned_recovery_ms',true);
 const joined=new Counter('players_joined'),readyCount=new Counter('players_ready'),finished=new Counter('players_finished'),ticks=new Counter('ticks_accepted'),reconnections=new Counter('planned_reconnections'),unexpectedClose=new Counter('unexpected_disconnects'),recovered=new Counter('planned_reconnections_recovered'),scoreUpdates=new Counter('score_updates'),checkpoints=new Counter('board_checkpoints'),ackTimeouts=new Counter('ack_timeouts'),joinRetries=new Counter('join_retries'),lateChecks=new Counter('late_submissions_rejected'),collisions=new Counter('collisions_verified');
 const rateLimited=new Counter('rate_limited_429'),wireBytes=new Counter('player_message_bytes'),playerSnapshots=new Counter('player_snapshots');
+const serverQueue=new Trend('server_queue_ms',true),serverApply=new Trend('server_apply_ms',true),serverCommit=new Trend('server_commit_ms',true);
 const zone='github-cloud-'+shard;
 const expected=(index,seq)=>seq?fixture.trajectories[index%fixture.trajectories.length][seq-1]:{score:0,foods:0,deaths:0,hash:fixture.initialHash};
 function correct(index,seq,score,foods){const e=expected(index,seq);return !!e&&e.score===score&&e.foods===foods&&score===foods*10+Math.floor(foods/5)*30}
@@ -48,7 +49,7 @@ export async function cloudController(){
   const minTicks=Math.floor((fixture.duration-8)*5*.9);required(ranks.every(p=>p.seq>=minTicks),'every player sustained movement workload');
   required(hostSnapshots>0&&hostBoardPlayers===N,'host received full leaderboard');
   const history=await host(null,'/history?round=1');required(history.players?.length===N&&history.players.every((p,i)=>['id','name','score','foods','seq','alive','rank'].every(k=>p[k]===ranks[i][k])),'archived results equal final leaderboard');
-  const network=await host(null,'/network');console.log(JSON.stringify({event:'cloud_network',stage:'final',network}));
+  const network=await host(null,'/network');required(network.storageAudit?.players===N&&network.storageAudit.mismatches===0,'durable stored boards equal authoritative state');console.log(JSON.stringify({event:'cloud_network',stage:'final',network}));
   console.log(JSON.stringify({event:'cloud_verification',ok:true,room:fixture.code,players:N,verifiedMatchSeconds:(room.endsAt-room.startsAt)/1000,startsAt:room.startsAt,endsAt:room.endsAt,hostSnapshots,hostBoardPlayers,ticks:ranks.reduce((n,p)=>n+p.seq,0),minTicks:Math.min(...ranks.map(p=>p.seq)),maxTicks:Math.max(...ranks.map(p=>p.seq)),scoreSum:ranks.reduce((n,p)=>n+p.score,0),foodSum:ranks.reduce((n,p)=>n+p.foods,0),allScoresVerified:true,rankingVerified:rankOK,historyVerified:true,allPlayersSustained:true}));
  }catch(e){console.error(JSON.stringify({event:'cloud_control_failed',message:String(e.message)}));exec.test.abort('Cloud controller verification failed')}
  finally{stopping=true;clearInterval(beat);clearTimeout(retry);ws?.close(1000)}
@@ -92,7 +93,7 @@ function startPlayer(index,key){
     }
    }
    if(m.type==='ack'&&pending&&m.requestId===pending.id){
-    ackMs.add(now-pending.at,{zone});errors.add(false);ticks.add(m.game.seq-confirmed);scoreMatch.add(correct(index,m.game.seq,m.game.score,m.game.foods));
+    ackMs.add(now-pending.at,{zone});if(m.serverTiming){serverQueue.add(m.serverTiming.queue);serverApply.add(m.serverTiming.apply);serverCommit.add(m.serverTiming.commit);}errors.add(false);ticks.add(m.game.seq-confirmed);scoreMatch.add(correct(index,m.game.seq,m.game.score,m.game.foods));
     const deaths=expected(index,m.game.seq).deaths-expected(index,confirmed).deaths;if(deaths)collisions.add(deaths);
     if(pending.payload.type==='score')scoreUpdates.add(1);else checkpoints.add(1);confirmed=m.game.seq;queue.shift();pending=null;syncError=false;retryAt=0;flush();
    }
@@ -104,7 +105,7 @@ function startPlayer(index,key){
    }
   };
   connection.onerror=e=>{errors.add(true);logError('socket_error',{message:String(e.error||e.message||e.type),phase:room?.status})};
-  connection.onclose=e=>{if(ws!==connection)return;clearInterval(timer);clearInterval(beat);if(!done&&!intentional){unexpectedClose.add(1,{role:'player',code:String(e.code)});logError('unexpected_close',{code:e.code,reason:e.reason,phase:room?.status,sequence:confirmed});setTimeout(connect,1000)}};
+  connection.onclose=e=>{if(ws!==connection)return;clearInterval(timer);clearInterval(beat);if(!done&&!intentional){unexpectedClose.add(1,{role:'player',code:String(e.code)});logError('unexpected_close',{code:e.code??null,wasClean:e.wasClean??null,eventType:e.type??null,reason:e.reason,phase:room?.status,sequence:confirmed});setTimeout(connect,1000)}};
   function play(){
    const now=Date.now(),serverTime=now+offset;if(done||!room||room.status==='lobby'||room.status==='finished'||serverTime<room.startsAt||serverTime>=room.endsAt||ws.readyState!==1)return;
    if(!reconnected&&index%5===0&&serverTime>room.startsAt+fixture.duration*500){reconnected=true;intentional=true;recoveringAt=now;reconnections.add(1);ws.close(1000,'planned reconnect');setTimeout(connect,5000);return}
