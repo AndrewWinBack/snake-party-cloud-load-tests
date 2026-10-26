@@ -7,7 +7,7 @@ assert.equal(process.env.GITHUB_ACTIONS,'true','Cloud runners only');
 const scope=process.env.TEST_SCOPE;
 assert.ok(['smoke','60','180'].includes(scope));
 assert.match(process.env.BUNDLE_KEY||'',/^[a-f0-9]{64}$/);
-const partCount=Number(process.env.BUNDLE_PART_COUNT);
+const partCount=Number((process.env.BUNDLE_PART_COUNT||'').replace(/^parts:/,''));
 assert.ok(Number.isInteger(partCount)&&partCount>0&&partCount<=24,'Missing private test fixture');
 const blob=JSON.parse(Array.from({length:partCount},(_,i)=>process.env['BUNDLE_'+String(i).padStart(2,'0')]||'').join(''));
 const decipher=createDecipheriv('aes-256-gcm',Buffer.from(process.env.BUNDLE_KEY,'hex'),Buffer.from(blob.iv,'hex'));
