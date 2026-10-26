@@ -1,0 +1,50 @@
+name: Four cloud nodes - Snake load validation
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Test scope (800 players for 60/180 seconds, or 20-player preflight)
+        type: choice
+        options: [smoke, '60', '180']
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: snake-load-acceptance
+  cancel-in-progress: false
+jobs:
+  load:
+    name: Cloud node ${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Install official k6 with verified checksum
+        run: |
+          curl --fail --location --retry 3 https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-amd64.tar.gz -o k6.tar.gz
+          echo '39c3117b6af817592dcd0ce4242105c0a7af10948c2a425306f0be8f7a8a8ab1  k6.tar.gz' | sha256sum --check --strict
+          tar -xzf k6.tar.gz --strip-components=1 k6-v2.3.0-linux-amd64/k6
+      - name: Run cloud shard
+        env:
+          BUNDLE_KEY: ${{ secrets.TEST_BUNDLE_KEY }}
+          TEST_SCOPE: ${{ inputs.scope }}
+          SHARD_INDEX: ${{ matrix.shard }}
+        run: node scripts/run.mjs
+      - name: Save test results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: results-${{ inputs.scope }}-node-${{ matrix.shard }}
+          path: |
+            runtime/summary.json
+            runtime/execution.json
+            runtime/run.log
+          retention-days: 1
+          if-no-files-found: error
