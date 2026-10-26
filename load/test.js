@@ -66,15 +66,17 @@ export function players(){
  for(let j=0;j<batch;j++){
   const index=group*batch+j+indexOffset;if(index>=indexOffset+nodeN)break;const at=Date.now(),joinKey=Array.from(new Uint8Array(randomBytes(32)),v=>v.toString(16).padStart(2,'0')).join('');let r;
   for(let attempt=0;attempt<3;attempt++){r=http.post(path,JSON.stringify({action:'join',name:'LOAD-'+String(index).padStart(5,'0'),joinKey}),{headers:{'Content-Type':'application/json'},timeout:'8s',tags:{name:'player join'}});if(r.status===429)rateLimited.add(1);if(r.status===200||r.status>0&&r.status<500&&![408,429].includes(r.status)||attempt===2)break;joinRetries.add(1);sleep(attempt===0?.5:1.5)}
-  joinMs.add(Date.now()-at);if(r.status!==200){errors.add(true);console.warn(JSON.stringify({event:'join_failed',player:index,status:r.status,error:r.error}));continue}joined.add(1);startPlayer(index,r.json().key)
+  joinMs.add(Date.now()-at);if(r.status!==200){errors.add(true);console.warn(JSON.stringify({event:'join_failed',player:index,status:r.status,error:r.error}));continue}joined.add(1);startPlayer(index,r.json().key,r.json().wsPath)
  }
 }
-function startPlayer(index,key){
+function startPlayer(index,key,wsPath){
+ if(wsPath!==undefined&&!(typeof wsPath==='string'&&new RegExp('^/api/rooms/'+fixture.code+'/ws\\?shard=[0-3]$').test(wsPath)))throw new Error('Invalid same-room player route');
+ const playerWsURL=wsPath?fixture.base.replace(/^http/,'ws')+wsPath:wsURL;
  let room=null,confirmed=0,localSeq=0,sealedSeq=0,localScore=0,unreported=[],queue=[],pending=null,ws,timer,beat,offset=0,pingAt=0,lastSnapshot=0,syncError=false,retryAt=0,reconnected=false,recoveringAt=0,done=false,finalChecked=false,errorLogs=0,clockSkew=0;
  const deadline=setTimeout(()=>{errors.add(true);done=true;ws?.close();clearInterval(timer);clearInterval(beat)},runSeconds*1000-1500);
  const logError=(event,data)=>{if(errorLogs++<5)console.warn(JSON.stringify({event,player:index,...data}))};
  function connect(){
-  const opened=Date.now(),connection=new WebSocket(wsURL);ws=connection;let intentional=false;
+  const opened=Date.now(),connection=new WebSocket(playerWsURL);ws=connection;let intentional=false;
   connection.onopen=()=>connection.send(JSON.stringify({type:'auth',role:'player',key,protocol:3}));
   connection.onmessage=e=>{
    if(ws!==connection||done)return;const now=Date.now();if(e.data==='pong'){if(pingAt){heartbeatMs.add(now-pingAt);pingAt=0}return}wireBytes.add(e.data.length,{zone});const m=JSON.parse(e.data);
