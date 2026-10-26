@@ -35,5 +35,5 @@ for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{
 });
 const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve)});
 writeFileSync('runtime/run.log',log);
-writeFileSync('runtime/execution.json',JSON.stringify({scope,shard,players:bundle.fixture.players/4,seconds:bundle.fixture.duration,runId:process.env.GITHUB_RUN_ID,runnerName:process.env.RUNNER_NAME,exitCode:code},null,2));
+writeFileSync('runtime/execution.json',JSON.stringify({scope,shard,players:bundle.fixture.players/4,seconds:bundle.fixture.duration,runId:process.env.GITHUB_RUN_ID,runnerName:process.env.RUNNER_NAME,transportDiagnostics:true,k6SourceCommit:'e0887846143ab176d4b5483c9d52cf3b3e009f1a',exitCode:code},null,2));
 process.exitCode=typeof code==='number'?code:1;

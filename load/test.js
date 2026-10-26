@@ -76,7 +76,7 @@ function startPlayer(index,key,wsPath){
  const deadline=setTimeout(()=>{errors.add(true);done=true;ws?.close();clearInterval(timer);clearInterval(beat)},runSeconds*1000-1500);
  const logError=(event,data)=>{if(errorLogs++<5)console.warn(JSON.stringify({event,player:index,...data}))};
  function connect(){
-  const opened=Date.now(),serial=++connectionSerial,connection=new WebSocket(playerWsURL);ws=connection;let intentional=false,lastMessageAt=opened,lastMessageType='connecting';
+  const opened=Date.now(),serial=++connectionSerial,connection=new WebSocket(playerWsURL,[],{tags:{player:String(index)}});ws=connection;let intentional=false,lastMessageAt=opened,lastMessageType='connecting';
   connection.onopen=()=>connection.send(JSON.stringify({type:'auth',role:'player',key,protocol:3}));
   connection.onmessage=e=>{
    if(ws!==connection||done)return;const now=Date.now();lastMessageAt=now;if(e.data==='pong'){if(pingAt){heartbeatMs.add(now-pingAt);pingAt=0}return}wireBytes.add(e.data.length,{zone});const m=JSON.parse(e.data);lastMessageType=m.type;
