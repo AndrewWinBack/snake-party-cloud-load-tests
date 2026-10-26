@@ -27,7 +27,8 @@ let log='';
 for(const stream of [child.stdout,child.stderr])stream.on('data',chunk=>{
  const text=chunk.toString();
  if(text.includes(bundle.hostKey))throw new Error('Credential logging forbidden');
- log+=text;process.stdout.write(text);
+ const publicText=text.replaceAll(bundle.fixture.code,'[test-room]');
+ log+=publicText;process.stdout.write(publicText);
 });
 const code=await new Promise((resolve,reject)=>{child.on('error',reject);child.on('exit',resolve)});
 writeFileSync('runtime/run.log',log);
