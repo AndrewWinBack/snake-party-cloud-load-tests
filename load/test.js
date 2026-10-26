@@ -72,14 +72,14 @@ export function players(){
 function startPlayer(index,key,wsPath){
  if(wsPath!==undefined&&!(typeof wsPath==='string'&&new RegExp('^/api/rooms/'+fixture.code+'/ws\\?shard=[0-3]$').test(wsPath)))throw new Error('Invalid same-room player route');
  const playerWsURL=wsPath?fixture.base.replace(/^http/,'ws')+wsPath:wsURL;
- let room=null,confirmed=0,localSeq=0,sealedSeq=0,localScore=0,unreported=[],queue=[],pending=null,ws,timer,beat,offset=0,pingAt=0,lastSnapshot=0,syncError=false,retryAt=0,reconnected=false,recoveringAt=0,done=false,finalChecked=false,errorLogs=0,clockSkew=0;
+ let room=null,confirmed=0,localSeq=0,sealedSeq=0,localScore=0,unreported=[],queue=[],pending=null,ws,timer,beat,offset=0,pingAt=0,lastSnapshot=0,syncError=false,retryAt=0,reconnected=false,recoveringAt=0,done=false,finalChecked=false,errorLogs=0,clockSkew=0,connectionSerial=0;
  const deadline=setTimeout(()=>{errors.add(true);done=true;ws?.close();clearInterval(timer);clearInterval(beat)},runSeconds*1000-1500);
  const logError=(event,data)=>{if(errorLogs++<5)console.warn(JSON.stringify({event,player:index,...data}))};
  function connect(){
-  const opened=Date.now(),connection=new WebSocket(playerWsURL);ws=connection;let intentional=false;
+  const opened=Date.now(),serial=++connectionSerial,connection=new WebSocket(playerWsURL);ws=connection;let intentional=false,lastMessageAt=opened,lastMessageType='connecting';
   connection.onopen=()=>connection.send(JSON.stringify({type:'auth',role:'player',key,protocol:3}));
   connection.onmessage=e=>{
-   if(ws!==connection||done)return;const now=Date.now();if(e.data==='pong'){if(pingAt){heartbeatMs.add(now-pingAt);pingAt=0}return}wireBytes.add(e.data.length,{zone});const m=JSON.parse(e.data);
+   if(ws!==connection||done)return;const now=Date.now();lastMessageAt=now;if(e.data==='pong'){if(pingAt){heartbeatMs.add(now-pingAt);pingAt=0}return}wireBytes.add(e.data.length,{zone});const m=JSON.parse(e.data);lastMessageType=m.type;
    if(m.type==='ready'){
     offset=m.serverNow-now;const game=m.me.game;check(game,{'player receives authoritative board':g=>Number.isInteger(g.seq)&&Array.isArray(g.snake)});scoreMatch.add(correct(index,game.seq,game.score,game.foods));stateMatch.add(sha256(JSON.stringify(game),'hex')===expected(index,game.seq)?.hash);
     if(recoveringAt){recovered.add(1);recoveryMs.add(now-recoveringAt);recoveringAt=0;lastSnapshot=0}
@@ -107,7 +107,7 @@ function startPlayer(index,key,wsPath){
    }
   };
   connection.onerror=e=>{errors.add(true);logError('socket_error',{message:String(e.error||e.message||e.type),phase:room?.status})};
-  connection.onclose=e=>{if(ws!==connection)return;clearInterval(timer);clearInterval(beat);if(!done&&!intentional){unexpectedClose.add(1,{role:'player',code:String(e.code)});logError('unexpected_close',{code:e.code??null,wasClean:e.wasClean??null,eventType:e.type??null,reason:e.reason,phase:room?.status,sequence:confirmed});setTimeout(connect,1000)}};
+  connection.onclose=e=>{console.log(JSON.stringify({event:'socket_closed',player:index,serial,at:Date.now(),age:Date.now()-opened,code:e.code??null,reason:e.reason??'',eventKeys:Object.keys(e),state:connection.readyState,current:ws===connection,intentional,done,lastMessageAge:Date.now()-lastMessageAt,lastMessageType,phase:room?.status,sequence:confirmed,endsAt:room?.endsAt,serverTime:Date.now()+offset}));if(ws!==connection)return;clearInterval(timer);clearInterval(beat);if(!done&&!intentional){unexpectedClose.add(1,{role:'player',code:String(e.code)});logError('unexpected_close',{code:e.code??null,wasClean:e.wasClean??null,eventType:e.type??null,reason:e.reason,phase:room?.status,sequence:confirmed});setTimeout(connect,1000)}};
   function play(){
    const now=Date.now(),serverTime=now+offset;if(done||!room||room.status==='lobby'||room.status==='finished'||serverTime<room.startsAt||serverTime>=room.endsAt||ws.readyState!==1)return;
    if(!reconnected&&index%5===0&&serverTime>room.startsAt+fixture.duration*500){reconnected=true;intentional=true;recoveringAt=now;reconnections.add(1);ws.close(1000,'planned reconnect');setTimeout(connect,5000);return}
