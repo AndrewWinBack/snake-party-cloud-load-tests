@@ -34,6 +34,31 @@ jobs:
       - name: Run cloud shard
         env:
           BUNDLE_KEY: ${{ secrets.TEST_BUNDLE_KEY }}
+          BUNDLE_PART_COUNT: ${{ secrets[format('LOAD{0}_PART_COUNT', inputs.scope)] }}
+          BUNDLE_00: ${{ secrets[format('LOAD{0}_00', inputs.scope)] }}
+          BUNDLE_01: ${{ secrets[format('LOAD{0}_01', inputs.scope)] }}
+          BUNDLE_02: ${{ secrets[format('LOAD{0}_02', inputs.scope)] }}
+          BUNDLE_03: ${{ secrets[format('LOAD{0}_03', inputs.scope)] }}
+          BUNDLE_04: ${{ secrets[format('LOAD{0}_04', inputs.scope)] }}
+          BUNDLE_05: ${{ secrets[format('LOAD{0}_05', inputs.scope)] }}
+          BUNDLE_06: ${{ secrets[format('LOAD{0}_06', inputs.scope)] }}
+          BUNDLE_07: ${{ secrets[format('LOAD{0}_07', inputs.scope)] }}
+          BUNDLE_08: ${{ secrets[format('LOAD{0}_08', inputs.scope)] }}
+          BUNDLE_09: ${{ secrets[format('LOAD{0}_09', inputs.scope)] }}
+          BUNDLE_10: ${{ secrets[format('LOAD{0}_10', inputs.scope)] }}
+          BUNDLE_11: ${{ secrets[format('LOAD{0}_11', inputs.scope)] }}
+          BUNDLE_12: ${{ secrets[format('LOAD{0}_12', inputs.scope)] }}
+          BUNDLE_13: ${{ secrets[format('LOAD{0}_13', inputs.scope)] }}
+          BUNDLE_14: ${{ secrets[format('LOAD{0}_14', inputs.scope)] }}
+          BUNDLE_15: ${{ secrets[format('LOAD{0}_15', inputs.scope)] }}
+          BUNDLE_16: ${{ secrets[format('LOAD{0}_16', inputs.scope)] }}
+          BUNDLE_17: ${{ secrets[format('LOAD{0}_17', inputs.scope)] }}
+          BUNDLE_18: ${{ secrets[format('LOAD{0}_18', inputs.scope)] }}
+          BUNDLE_19: ${{ secrets[format('LOAD{0}_19', inputs.scope)] }}
+          BUNDLE_20: ${{ secrets[format('LOAD{0}_20', inputs.scope)] }}
+          BUNDLE_21: ${{ secrets[format('LOAD{0}_21', inputs.scope)] }}
+          BUNDLE_22: ${{ secrets[format('LOAD{0}_22', inputs.scope)] }}
+          BUNDLE_23: ${{ secrets[format('LOAD{0}_23', inputs.scope)] }}
           TEST_SCOPE: ${{ inputs.scope }}
           SHARD_INDEX: ${{ matrix.shard }}
         run: node scripts/run.mjs
